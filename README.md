@@ -1,12 +1,11 @@
-# Tool to create an autodicover.xml and autoconfig.xml file
+# autodicover.xml and autoconfig.xml 
 
-one of the nicest, yet badly documented features in new MUAs is email servers autodiscovering. When you type your e-mail address in configuration window, modern MUA is trying to determine what IMAP/POP3 servers are, and how to connect to them. To do so, they assume, that your email contains a server domain name. A nice assumption, but often not relevant (google apps is a good example here). Thankfully, there is also another way - asking an original server on a specially configured domain what those parameters are.
+The feature in many MUAs(Mail User Agents) is the email servers autodiscovering. When you type your e-mail address in their setup window, some MUAs are trying to determine what IMAP/POP3 servers to use.To do this, they assume, that your email contains a server domain name. They use this domain name to access its website to get an xml config setup file like autoconfig.xml
+,config-v1.1.xml, autodiscover.xml ....
 
-In a perfect world, there would one standard for that - in our world however, there are two: autoconfig (Mozilla favored) and autodiscover (Microsoft promoted). So we have to to set them together - thankfully both are based on simple XML files, so it's not a big deal.
-autoconfig (Mozilla Thunderbird)
+There are at the moment 2 main xml structured files:
 
-This one is (im my opinion) is more clean and advanced. To use it, just make your webserver to return below XML file on autoconfig. subdomain. So (for example) if you have email myname@mydomain.com - autoconfig.mydomain.com should return:
-
+Thunderbird's
 autoconfig.xml
 ```
 <?xml version="1.0" encoding="UTF-8"?>
@@ -44,20 +43,7 @@ autoconfig.xml
     </emailProvider>
 </clientConfig>
 ```
-If you have an email server on a different domain than your email account, simply add redirect to your httpd server. For example in nginx:
-
-/etc/nginx.conf
-```
-server {
-    server_name autoconfig.myotherdomain.com;
-    rewrite ^.* https://mydomain.com/config-v1.1.xml permanent;
-}
-```
-And that's it! From now on, your email will be automatically discovered by Thunderbird.
-autodiscover (Microsoft Outlook)
-
-Procedure is very similar here. You just have to set autodiscover. domain, and XML file is slightly different. So, for example autodiscover.mydomain.com should return:
-
+and Microsoft Outlook and Co 
 autodiscover.xml
 ```
 <?xml version="1.0" encoding="UTF-8"?>
@@ -99,14 +85,34 @@ autodiscover.xml
     </Response>
 </Autodiscover>
 ```
-And again, if your email domain differs from server domain, add proper redirect:
 
-/etc/nginx.conf
+Outlook on Windows 11 lookups:
 
 ```
-server {
-    server_name autodiscover.myotherdomain.com;
-    rewrite ^.* https://mydomain.com/autodiscover.xml permanent;
+"GET /.well-known/autoconfig/mail/config-v1.1.xml HTTP/1.1" 404 439 "-" "-"
+"POST /autodiscover/autodiscover.xml HTTP/1.1" 404 4280 "-" "OutlookMobileCloudService-Autodetect/1.0.0"
+"POST /autodiscover/autodiscover.xml HTTP/1.1" 404 4280 "-" "OutlookMobileCloudService-Autodetect/1.0.0
+
+```
+
+K-9 Android Mail lookups:
+```
+/.well-known/autoconfig/mail/config-v1.1.xml HTTP/1.1" 404 495 "-" "okhttp/4.12.0"
+/.well-known/autoconfig/mail/config-v1.1.xml HTTP/1.1" 404 4367 "-" "okhttp/4.12.0"
+```
+
+
+Example for nginx proxy 
+/etc/nginx.conf
+```
+location /autodiscover/autodiscover.xml {
+    proxy_pass https://ams.ddit-server.com/autodiscover.xml;
+}
+location /AutoDiscover/AutoDiscover.xml {
+    proxy_pass https://ams.ddit-server.com/autodiscover.xml;
+}
+location /.well-known/autoconfig/mail/config-v1.1.xml {
+ proxy_pass https://ams.ddit-server.com/autoconfig.xml;
 }
 ```
-ref: https://www.rzegocki.pl/blog/adding-email-server-autoconfig-and-autodiscover/ 
+
